@@ -19,6 +19,9 @@ return [
         'api_key' => env('PIXELFORGE_API_KEY'),
         'webhook_secret' => env('PIXELFORGE_WEBHOOK_SECRET'),
 
+        // Webhooks signed longer ago (or further ahead) than this are rejected as replays.
+        'webhook_tolerance_seconds' => 300,
+
         // How long GET /v1/pricing is cached before it is fetched again.
         'pricing_cache_seconds' => 3600,
 

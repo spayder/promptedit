@@ -5,8 +5,11 @@ namespace App\Providers;
 use App\Application\Ports\GenerationRepository;
 use App\Application\Ports\ImageProvider;
 use App\Application\Ports\PricingSource;
+use App\Application\Ports\WebhookEventStore;
 use App\Domain\Pricing\MarkupPolicy;
 use App\Infrastructure\Persistence\EloquentGenerationRepository;
+use App\Infrastructure\Persistence\EloquentWebhookEventStore;
+use App\Infrastructure\Pixelforge\WebhookSignatureVerifier;
 use App\Infrastructure\Pixelforge\CachedPricingSource;
 use App\Infrastructure\Pixelforge\PixelforgeClient;
 use App\Infrastructure\Pixelforge\PixelforgeSettings;
@@ -30,6 +33,19 @@ class AppServiceProvider extends ServiceProvider
             $app->make('cache.store'),
             (int) config('services.pixelforge.pricing_cache_seconds'),
         ));
+
+        $this->app->bind(WebhookEventStore::class, EloquentWebhookEventStore::class);
+
+        $this->app->bind(WebhookSignatureVerifier::class, function () {
+            if (blank(config('services.pixelforge.webhook_secret'))) {
+                throw new RuntimeException('PIXELFORGE_WEBHOOK_SECRET is not set.');
+            }
+
+            return new WebhookSignatureVerifier(
+                config('services.pixelforge.webhook_secret'),
+                (int) config('services.pixelforge.webhook_tolerance_seconds'),
+            );
+        });
 
         $this->app->bind(ImageProvider::class, function () {
             if (blank(config('services.pixelforge.api_key'))) {

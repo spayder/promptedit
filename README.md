@@ -173,4 +173,8 @@ Done:
       retries for 10 minutes while Pixelforge is busy; refusals and give-ups fail
       the generation at no charge
 
-Next: signed webhooks, UI, deployment.
+- [x] Signed webhooks: raw-body HMAC check with a replay window, events stored
+      once by id, applied by a queued job that goes by the reported status (so
+      duplicates and out-of-order deliveries change nothing)
+
+Next: poller for missed webhooks, UI, deployment.

@@ -34,6 +34,7 @@ final class ProviderSubmission
     public function __construct(
         private readonly GenerationRepository $generations,
         private readonly ImageProvider $provider,
+        private readonly ApplyProviderState $apply,
     ) {
     }
 
@@ -68,12 +69,10 @@ final class ProviderSubmission
             return;
         }
 
-        $this->generations->update($id, function (Generation $generation) use ($remote) {
-            $generation->linkProvider($remote->id);
-            // False when a webhook already moved it past "queued": then that
-            // later state is the truth and we leave it alone.
-            $generation->markQueued();
-        });
+        // Normally "queued". Applying whatever Pixelforge reports also covers a
+        // replay of an earlier request that has since finished, and leaves a
+        // state a webhook already moved on to (e.g. processing) alone.
+        $this->generations->update($id, fn (Generation $generation) => $this->apply->handle($generation, $remote));
     }
 
     /** We stopped trying (retries ran out). Nothing is charged for a generation that never ran. */
