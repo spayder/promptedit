@@ -18,7 +18,7 @@ use OverflowException;
  */
 final readonly class Money
 {
-    private const NANOS_PER_DOLLAR = 1_000_000_000;
+    private const int NANOS_PER_DOLLAR = 1_000_000_000;
 
     private function __construct(private int $nanos)
     {
