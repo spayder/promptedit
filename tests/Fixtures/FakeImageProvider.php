@@ -6,11 +6,11 @@ namespace Tests\Fixtures;
 
 use App\Application\Ports\ImageProvider;
 use App\Application\Provider\CreateGenerationRequest;
+use App\Application\Provider\Exceptions\ProviderNotFound;
 use App\Application\Provider\PricingSnapshot;
 use App\Application\Provider\ProviderGeneration;
 use App\Infrastructure\Pixelforge\ResponseMapper;
 use Closure;
-use LogicException;
 use Throwable;
 
 /** An in-memory ImageProvider for tests: records calls, can fail or run a hook on demand. */
@@ -32,6 +32,15 @@ final class FakeImageProvider implements ImageProvider
 
     public string $providerId = 'gen_test0001';
 
+    /** What getGeneration() answers, by Pixelforge id. Anything else is a 404. */
+    public array $remote = [];
+
+    /** @var list<string> the ids getGeneration() was asked about, in order */
+    public array $fetched = [];
+
+    /** Thrown by getGeneration() for the ids listed in $getFailures, keyed by id. */
+    public array $getFailures = [];
+
     public function createGeneration(CreateGenerationRequest $request, string $idempotencyKey): ProviderGeneration
     {
         $this->created[] = ['request' => $request, 'key' => $idempotencyKey];
@@ -52,7 +61,13 @@ final class FakeImageProvider implements ImageProvider
 
     public function getGeneration(string $providerId): ProviderGeneration
     {
-        throw new LogicException('getGeneration() is not faked.');
+        $this->fetched[] = $providerId;
+
+        if (isset($this->getFailures[$providerId])) {
+            throw $this->getFailures[$providerId];
+        }
+
+        return $this->remote[$providerId] ?? throw new ProviderNotFound('No such resource.', 'not_found', 404);
     }
 
     public function pricing(): PricingSnapshot

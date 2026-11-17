@@ -37,6 +37,12 @@ class GenerationFactory extends Factory
         ];
     }
 
+    /** Recorded by us, not yet accepted by Pixelforge. This is also the default. */
+    public function pending(): static
+    {
+        return $this->state(fn () => ['status' => GenerationStatus::Pending, 'provider_id' => null]);
+    }
+
     public function queued(): static
     {
         return $this->state(fn () => [

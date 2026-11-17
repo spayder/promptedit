@@ -6,8 +6,10 @@ namespace App\Application\Ports;
 
 use App\Application\Generation\GenerationNotFound;
 use App\Application\Generation\NewGeneration;
+use App\Application\Generation\OverdueGeneration;
 use App\Domain\Generation\Generation;
 use Closure;
+use DateTimeImmutable;
 
 /** Where generations are stored. The domain Generation never touches the database. */
 interface GenerationRepository
@@ -19,6 +21,16 @@ interface GenerationRepository
 
     /** The request exactly as it was recorded by add(), or null if there is no such generation. */
     public function findRequest(string $id): ?NewGeneration;
+
+    /**
+     * Unfinished generations that should have moved on by now, oldest first:
+     *
+     * - queued or processing, with no change since $idleSince (a webhook was probably missed),
+     * - pending, created before $pendingSince (the job that submits it was probably lost).
+     *
+     * @return list<OverdueGeneration>
+     */
+    public function findOverdue(DateTimeImmutable $idleSince, DateTimeImmutable $pendingSince, int $limit): array;
 
     /** Our id for a Pixelforge generation id, or null if we do not know it. */
     public function findIdByProviderId(string $providerId): ?string;

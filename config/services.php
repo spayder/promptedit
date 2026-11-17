@@ -19,6 +19,18 @@ return [
         'api_key' => env('PIXELFORGE_API_KEY'),
         'webhook_secret' => env('PIXELFORGE_WEBHOOK_SECRET'),
 
+        // The safety net for missed webhooks (php artisan generations:reconcile, every minute).
+        'reconcile' => [
+            // Ask Pixelforge about a queued/processing generation that has not changed for this long.
+            // Normal processing takes 5-90 seconds, so this is well past "slow".
+            'idle_seconds' => 120,
+            // Resubmit a pending generation after this long. Must exceed the submit job's retry
+            // window (10 minutes), or we would resubmit one that is still legitimately retrying.
+            'pending_seconds' => 720,
+            // At most this many generations per run; Pixelforge allows 60 requests a minute.
+            'batch_size' => 20,
+        ],
+
         // Webhooks signed longer ago (or further ahead) than this are rejected as replays.
         'webhook_tolerance_seconds' => 300,
 

@@ -6,6 +6,7 @@ namespace App\Infrastructure\Persistence;
 
 use App\Application\Generation\GenerationNotFound;
 use App\Application\Generation\NewGeneration;
+use App\Application\Generation\OverdueGeneration;
 use App\Application\Ports\GenerationRepository;
 use App\Domain\Generation\Generation;
 use App\Domain\Generation\GenerationStatus;
@@ -15,6 +16,7 @@ use App\Domain\Pricing\CostEstimate;
 use App\Domain\Pricing\Rates;
 use App\Models\Generation as GenerationRecord;
 use Closure;
+use DateTimeImmutable;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -70,6 +72,24 @@ final class EloquentGenerationRepository implements GenerationRepository
                 Money::nanos($record->estimated_charge_max_nanos),
             ),
         );
+    }
+
+    public function findOverdue(DateTimeImmutable $idleSince, DateTimeImmutable $pendingSince, int $limit): array
+    {
+        return GenerationRecord::query()
+            ->where(function ($query) use ($idleSince, $pendingSince) {
+                $query->where(fn ($q) => $q
+                    ->whereIn('status', [GenerationStatus::Queued, GenerationStatus::Processing])
+                    ->where('updated_at', '<', $idleSince))
+                    ->orWhere(fn ($q) => $q
+                        ->where('status', GenerationStatus::Pending)
+                        ->where('created_at', '<', $pendingSince));
+            })
+            ->orderBy('updated_at')
+            ->limit($limit)
+            ->get(['id', 'status', 'provider_id'])
+            ->map(fn (GenerationRecord $record) => new OverdueGeneration($record->id, $record->status, $record->provider_id))
+            ->all();
     }
 
     public function findIdByProviderId(string $providerId): ?string

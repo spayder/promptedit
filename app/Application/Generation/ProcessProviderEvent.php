@@ -7,8 +7,6 @@ namespace App\Application\Generation;
 use App\Application\Ports\GenerationRepository;
 use App\Application\Ports\WebhookEventStore;
 use App\Application\Provider\ProviderGeneration;
-use App\Domain\Generation\Generation;
-use App\Domain\Generation\GenerationStatus;
 use Illuminate\Support\Facades\Log;
 
 /** Applies one stored webhook event to the generation it is about. */
@@ -17,7 +15,7 @@ final class ProcessProviderEvent
     public function __construct(
         private readonly GenerationRepository $generations,
         private readonly WebhookEventStore $events,
-        private readonly ApplyProviderState $apply,
+        private readonly SyncGeneration $sync,
     ) {
     }
 
@@ -36,26 +34,12 @@ final class ProcessProviderEvent
         }
 
         try {
-            $recordedAs = $this->generations->update($ourId, function (Generation $generation) use ($remote) {
-                $this->apply->handle($generation, $remote);
-
-                return $generation->status;
-            });
+            $this->sync->sync($ourId, $remote);
         } catch (GenerationNotFound) {
             Log::warning('Webhook for a generation id that is not ours.', ['event' => $eventId, 'generation' => $ourId]);
             $this->events->markProcessed($eventId, null);
 
             return;
-        }
-
-        // We stopped waiting (and told the user they were not charged), but
-        // Pixelforge finished it anyway and will bill us. Needs a human.
-        if ($remote->status === GenerationStatus::Succeeded && $recordedAs !== GenerationStatus::Succeeded) {
-            Log::critical('Pixelforge billed a generation we recorded as not succeeded.', [
-                'generation' => $ourId,
-                'provider_id' => $remote->id,
-                'recorded_as' => $recordedAs->value,
-            ]);
         }
 
         $this->events->markProcessed($eventId, $ourId);

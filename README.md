@@ -177,4 +177,8 @@ Done:
       once by id, applied by a queued job that goes by the reported status (so
       duplicates and out-of-order deliveries change nothing)
 
-Next: poller for missed webhooks, UI, deployment.
+- [x] Poller for missed webhooks (`generations:reconcile`, every minute): asks
+      Pixelforge about generations unchanged for 2 minutes, and resubmits ones that
+      never reached it
+
+Next: UI, deployment.
