@@ -20,9 +20,6 @@ const expired = computed(
 );
 const showImage = computed(() => succeeded.value && !expired.value && g.value.imageUrl);
 
-// Keep the box the shape of the picture it will hold, so nothing jumps when it arrives.
-const ratio = computed(() => ({ '1024x1024': '1 / 1', '1536x1024': '3 / 2', '1024x1536': '2 / 3' })[g.value.size] ?? '1 / 1');
-
 const when = computed(() => {
     const seconds = Math.round((Date.parse(g.value.createdAt) - props.now) / 1000);
     const units = [['day', 86400], ['hour', 3600], ['minute', 60]];
@@ -45,9 +42,10 @@ const detail = computed(() => {
 
 <template>
     <article class="flex flex-col overflow-hidden rounded-lg bg-white shadow-sm ring-1 ring-gray-200">
-        <div class="relative bg-gray-100" :style="{ aspectRatio: ratio }">
+        <!-- Every card has the same square picture area, whatever shape the image is, so the grid stays even. -->
+        <div class="relative aspect-square bg-gray-100">
             <a v-if="showImage" :href="g.imageUrl" target="_blank" rel="noopener" class="block h-full w-full">
-                <img :src="g.imageUrl" :alt="g.prompt" loading="lazy" class="h-full w-full object-cover" />
+                <img :src="g.imageUrl" :alt="g.prompt" loading="lazy" class="h-full w-full object-contain" />
             </a>
 
             <div
@@ -74,23 +72,25 @@ const detail = computed(() => {
                 <time :datetime="g.createdAt" :title="new Date(g.createdAt).toLocaleString()" class="text-xs text-gray-500">{{ when }}</time>
             </div>
 
-            <p class="line-clamp-2 text-sm text-gray-900" :title="g.prompt">{{ g.prompt }}</p>
-            <p class="text-xs text-gray-500">{{ detail }}</p>
+            <!-- Room for two lines, so a short prompt does not make the card shorter. -->
+            <p class="line-clamp-2 min-h-[2.5rem] text-sm leading-5 text-gray-900" :title="g.prompt">{{ g.prompt }}</p>
+            <p class="truncate text-xs text-gray-500" :title="detail">{{ detail }}</p>
 
-            <p class="mt-auto pt-1 text-sm tabular-nums">
-                <template v-if="inProgress">
+            <!-- Two lines as well: what it costs, and what that was expected to be. -->
+            <div class="mt-auto min-h-[2.75rem] pt-1 text-sm tabular-nums">
+                <p v-if="inProgress">
                     <span class="text-gray-500">Estimated</span>
                     <span class="ms-1 font-medium text-gray-900">{{ g.estimate.min }} – {{ g.estimate.max }}</span>
-                </template>
-                <template v-else-if="g.charge?.free">
-                    <span class="font-medium text-green-700">Not charged</span>
-                </template>
+                </p>
+                <p v-else-if="g.charge?.free" class="font-medium text-green-700">Not charged</p>
                 <template v-else-if="g.charge">
-                    <span class="text-gray-500">Charged</span>
-                    <span class="ms-1 font-medium text-gray-900" :title="`$${g.charge.exact}`">{{ g.charge.display }}</span>
-                    <span class="ms-1 text-xs text-gray-400">(estimated {{ g.estimate.min }} – {{ g.estimate.max }})</span>
+                    <p>
+                        <span class="text-gray-500">Charged</span>
+                        <span class="ms-1 font-medium text-gray-900" :title="`$${g.charge.exact}`">{{ g.charge.display }}</span>
+                    </p>
+                    <p class="text-xs text-gray-400">Estimated {{ g.estimate.min }} – {{ g.estimate.max }}</p>
                 </template>
-            </p>
+            </div>
         </div>
     </article>
 </template>
