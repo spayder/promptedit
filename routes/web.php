@@ -3,18 +3,15 @@
 use App\Http\Controllers\GenerationController;
 use App\Http\Controllers\GenerationQuoteController;
 use App\Http\Controllers\ProfileController;
-use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
+// Signed-in people go straight to the product; everyone else sees the landing page.
 Route::get('/', function () {
-    return Inertia::render('Welcome', [
-        'canLogin' => Route::has('login'),
-        'canRegister' => Route::has('register'),
-        'laravelVersion' => Application::VERSION,
-        'phpVersion' => PHP_VERSION,
-    ]);
-});
+    return auth()->check()
+        ? to_route('generations.create')
+        : Inertia::render('Welcome');
+})->name('home');
 
 // Signing in lands here (Breeze redirects to "dashboard"); the product's home is the generate page.
 Route::redirect('/dashboard', '/generate')->name('dashboard');
