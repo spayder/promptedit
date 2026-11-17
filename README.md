@@ -8,6 +8,39 @@ and every generation is recorded at exactly the right cost.
 > Work in progress. This README describes the target design; the
 > [Status](#status) section says what exists today.
 
+## Trying the app
+
+**Live:** https://promptedit-production-egzcwz.laravel.cloud
+
+Choose "Create an account". Any email and password works; there is no email
+verification. The app sleeps when idle to save cost, so the first request after a
+quiet period can take a couple of seconds.
+
+On the Generate page the price range changes as you change the size, quality and
+reference images, and it is worked out by the same code that records the estimate
+when you submit. After you press Generate, History updates by itself until
+everything on the page has finished.
+
+Pixelforge lets you trigger behaviours on purpose by putting a keyword anywhere in
+the prompt:
+
+| Keyword | What you will see |
+| --- | --- |
+| `[succeed]` | A normal, successful generation. |
+| `[fail]` | The generation fails while processing and is shown as "Not charged". |
+| `[duplicate]` | Every webhook event for it is delivered twice. Combine with `[succeed]` (`Two doves [duplicate] [succeed]`): it is still charged once. |
+| `[slow]` | Takes 60 to 90 seconds, so you can watch the history update. |
+| `[blocked]` | Rejected at submission by the content policy. Nothing is charged. |
+| `[overloaded]` | Pixelforge answers 503; the job waits and retries. |
+
+Things worth knowing:
+
+- Images are not stored. Pixelforge's link works for 24 hours, then the card shows
+  "Image expired". The charge stays visible.
+- Users only ever see what they are charged. Pixelforge's own cost is recorded but
+  not shown.
+- Pixelforge is a simulated provider: no real AI and no real money.
+
 ## Stack
 
 - PHP 8.5, Laravel 13, Postgres 18
