@@ -17,6 +17,9 @@ interface GenerationRepository
 
     public function find(string $id): ?Generation;
 
+    /** The request exactly as it was recorded by add(), or null if there is no such generation. */
+    public function findRequest(string $id): ?NewGeneration;
+
     /** Our id for a Pixelforge generation id, or null if we do not know it. */
     public function findIdByProviderId(string $providerId): ?string;
 

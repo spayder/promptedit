@@ -11,6 +11,7 @@ use App\Domain\Generation\Generation;
 use App\Domain\Generation\GenerationStatus;
 use App\Domain\Generation\TokenUsage;
 use App\Domain\Money;
+use App\Domain\Pricing\CostEstimate;
 use App\Domain\Pricing\Rates;
 use App\Models\Generation as GenerationRecord;
 use Closure;
@@ -47,6 +48,28 @@ final class EloquentGenerationRepository implements GenerationRepository
         $record = GenerationRecord::query()->find($id);
 
         return $record === null ? null : $this->toDomain($record);
+    }
+
+    public function findRequest(string $id): ?NewGeneration
+    {
+        $record = GenerationRecord::query()->find($id);
+
+        if ($record === null) {
+            return null;
+        }
+
+        return new NewGeneration(
+            id: $record->id,
+            userId: $record->user_id,
+            prompt: $record->prompt,
+            quality: $record->quality,
+            size: $record->size,
+            referenceImages: $record->reference_images,
+            estimatedCharge: new CostEstimate(
+                Money::nanos($record->estimated_charge_min_nanos),
+                Money::nanos($record->estimated_charge_max_nanos),
+            ),
+        );
     }
 
     public function findIdByProviderId(string $providerId): ?string

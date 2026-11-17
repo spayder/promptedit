@@ -19,6 +19,9 @@ return [
         'api_key' => env('PIXELFORGE_API_KEY'),
         'webhook_secret' => env('PIXELFORGE_WEBHOOK_SECRET'),
 
+        // How long GET /v1/pricing is cached before it is fetched again.
+        'pricing_cache_seconds' => 3600,
+
         // HTTP timeouts, in seconds.
         'timeout' => 10,
         'connect_timeout' => 5,

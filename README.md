@@ -168,4 +168,9 @@ Done:
       `Retry-After` handling, settings in `config/services.php`; checked against
       the live API
 
-Next: submission flow, signed webhooks, UI, deployment.
+- [x] Submission flow: quote (estimate with markup, pricing cached), record as
+      `pending`, queued job calls Pixelforge with our id as the idempotency key and
+      retries for 10 minutes while Pixelforge is busy; refusals and give-ups fail
+      the generation at no charge
+
+Next: signed webhooks, UI, deployment.
