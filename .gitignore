@@ -25,3 +25,7 @@ _ide_helper.php
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# Laravel starter's agent bootstrap files (remote installer instructions); not part of this project
+/AGENTS.md
+/CLAUDE.md
