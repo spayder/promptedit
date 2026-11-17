@@ -1,58 +1,107 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Pixelforge Studio
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+A Laravel + Vue + Inertia app where signed-in users generate images through
+**Pixelforge**, an asynchronous, per-token-priced (and occasionally unreliable)
+image-generation API. Users are charged Pixelforge's cost plus a **25% markup**,
+and every generation is recorded at exactly the right cost.
 
-## About Laravel
+> Work in progress. This README describes the target design; the
+> [Status](#status) section says what exists today.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Stack
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+- PHP 8.5, Laravel 13, Postgres 18
+- Vue 3 + Inertia (Breeze starter), Tailwind, Vite
+- Pest for tests
+- Laravel Sail for local development (with Xdebug), database queue driver
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## Getting started
 
-## Learning Laravel
-
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
-
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+Requirements: Docker. PHP and Composer are not needed on the host.
 
 ```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+cp .env.example .env
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+Install dependencies without PHP on the host:
 
-## Contributing
+```bash
+docker run --rm -u "$(id -u):$(id -g)" -v "$PWD":/opt -w /opt laravelsail/php84-composer:latest composer install --ignore-platform-reqs
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+Start the stack (app, Postgres, queue worker, scheduler), then prepare the app:
 
-## Code of Conduct
+```bash
+./vendor/bin/sail up -d
+./vendor/bin/sail artisan key:generate
+./vendor/bin/sail artisan migrate
+./vendor/bin/sail npm install
+./vendor/bin/sail npm run dev
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+The app is served at http://localhost.
 
-## Security Vulnerabilities
+### Pixelforge credentials
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+Create a Pixelforge account and one API key per environment, then set in `.env`:
 
-## License
+```
+PIXELFORGE_API_KEY=...
+PIXELFORGE_WEBHOOK_SECRET=whsec_...
+```
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+Each key has its own webhook URL and signing secret. For local development,
+Pixelforge rejects private addresses, so expose the app through a tunnel
+(Expose, ngrok or Cloudflare Tunnel) and register
+`https://<tunnel-host>/webhooks/pixelforge` in the Pixelforge dashboard.
+
+### Tests
+
+```bash
+./vendor/bin/sail test
+```
+
+### Xdebug
+
+Step debugging is enabled through `SAIL_XDEBUG_MODE=develop,debug` in `.env`.
+Start the debug listener in your IDE (port 9003) and map the project root to
+`/var/www/html`. Set `SAIL_XDEBUG_MODE=off` to silence connection warnings when
+no IDE is listening.
+
+## Architecture
+
+A normal Laravel app with a small hexagonal core, sized for the scope of the
+project:
+
+```
+app/Domain/          Framework-free value objects and rules (no Illuminate imports)
+app/Application/     Use cases (submit a generation, apply a provider event, ...)
+app/Infrastructure/  Adapters: Pixelforge HTTP client, Eloquent repositories
+app/Http/            Thin controllers and form requests (Laravel as delivery layer)
+```
+
+The domain layer is plain PHP so pricing and state-transition rules unit-test
+in milliseconds without booting the framework. Everything else uses Laravel
+idiomatically (Eloquent, queued jobs, form requests, scheduler, HTTP client).
+
+## Money
+
+All money is stored as **integer nanodollars** (1 USD = 1,000,000,000). Pixelforge
+reports costs with nine decimal places, so this represents every provider
+amount exactly and avoids floating point entirely (see `App\Domain\Money`).
+
+- Provider cost is recorded exactly and reconciles with Pixelforge's usage report.
+- The user is charged `ceil(provider_cost * 1.25)` in nanodollars. Rounding up
+  to the next nanodollar means the charge is never below the exact marked-up
+  price, and the rounding error is at most one billionth of a dollar.
+- Failed generations cost nothing.
+
+## Status
+
+Done:
+
+- [x] Sail environment (Postgres, Xdebug, queue worker, scheduler), Breeze auth, Pest
+- [x] `Money` value object
+
+Next: pricing and cost calculation, generation state rules, Pixelforge client,
+submission flow, signed webhooks, UI, deployment.
