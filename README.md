@@ -5,8 +5,9 @@ A Laravel + Vue + Inertia app where signed-in users generate images through
 image-generation API. Users are charged Pixelforge's cost plus a **25% markup**,
 and every generation is recorded at exactly the right cost.
 
-> Work in progress. This README describes the target design; the
-> [Status](#status) section says what exists today.
+> The required parts are built and deployed, plus the report from the stretch
+> goals; see [Trying the app](#trying-the-app) and [Status](#status). Balances
+> ("Buy credits") are not built.
 
 ## Trying the app
 
@@ -53,6 +54,7 @@ Things worth knowing:
 - Vue 3 + Inertia (Breeze starter), Tailwind, Vite
 - Pest for tests
 - Laravel Sail for local development (with Xdebug), database queue driver
+- Laravel Cloud in production: serverless Postgres, a managed queue and the scheduler
 
 ## Getting started
 
@@ -248,24 +250,22 @@ Done:
 - [x] Pixelforge HTTP client behind the `ImageProvider` port: typed errors,
       `Retry-After` handling, settings in `config/services.php`; checked against
       the live API
-
 - [x] Submission flow: quote (estimate with markup, pricing cached), record as
       `pending`, queued job calls Pixelforge with our id as the idempotency key and
       retries for 10 minutes while Pixelforge is busy; refusals and give-ups fail
       the generation at no charge
-
 - [x] Signed webhooks: raw-body HMAC check with a replay window, events stored
       once by id, applied by a queued job that goes by the reported status (so
       duplicates and out-of-order deliveries change nothing)
-
 - [x] Poller for missed webhooks (`generations:reconcile`, every minute): asks
       Pixelforge about generations unchanged for 2 minutes, and resubmits ones that
       never reached it
-
 - [x] UI: generate page with a live price range (priced by the same server code
       that records it), history page that updates itself while anything is
       unfinished, "Image expired" and "Not charged" states
-
 - [x] Report page: per day and user, with a check against Pixelforge's usage report
+- [x] Deployed on Laravel Cloud. On the production key the report matches
+      Pixelforge's usage exactly, with a success, a free failure and a `[duplicate]`
+      generation recorded once
 
-Next: balances (fake "Buy credits", block what cannot be afforded).
+Not built: balances (a fake "Buy credits" and blocking what cannot be afforded).
