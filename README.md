@@ -154,6 +154,48 @@ charged exactly 0, money cannot be negative, and `status` is limited to the five
 valid values. `provider_id` is unique, and `webhook_events.event_id` is unique so
 a redelivered event cannot be recorded twice.
 
+## Deploying to Laravel Cloud
+
+The app runs on [Laravel Cloud](https://cloud.laravel.com) (Starter plan) with
+serverless Postgres, a managed queue and the scheduler. Locally the queue is the
+`database` driver; on Cloud it is the managed queue, which needs the
+`aws/aws-sdk-php` package (already required) and wakes by itself when jobs arrive,
+so jobs keep running while the web app sleeps.
+
+1. **Create the app** from the GitHub repository. Set a low spending limit.
+2. **Build commands**
+
+   ```sh
+   composer install --no-dev
+   npm ci --audit false
+   npm run build
+   php artisan optimize
+   ```
+
+3. **Deploy command:** `php artisan migrate --force`
+4. **Database:** attach Serverless Postgres in the same region. Cloud injects the `DB_*` variables.
+5. **Queue:** add a managed queue (standard, Flex). Cloud sets `QUEUE_CONNECTION=cloud`.
+6. **Scheduler:** switch on the scheduler for the app cluster. It runs
+   `generations:reconcile` every minute, which also wakes a sleeping environment.
+7. **Environment variables**
+
+   | Variable | Value |
+   | --- | --- |
+   | `APP_ENV` | `production` |
+   | `APP_DEBUG` | `false` |
+   | `APP_NAME` | `Pixelforge Studio` |
+   | `CACHE_STORE` | `database` |
+   | `SESSION_DRIVER` | `database` |
+   | `PIXELFORGE_API_KEY` | the key made for this deployment (one key per environment) |
+   | `PIXELFORGE_WEBHOOK_SECRET` | the `whsec_...` signing secret of that same key |
+
+   `APP_KEY`, `APP_URL`, the database and the queue are provided by Cloud.
+8. **Webhook:** in the Pixelforge dashboard, set the deployed key's webhook URL to
+   `https://<your-app-url>/webhooks/pixelforge`, then press "Send test event"
+   (it should answer 204).
+9. **Check the money:** compare the deployed key's `GET /v1/usage` for a UTC day with
+   the sum of `provider_cost_nanos` of succeeded generations completed that day.
+
 ## Status
 
 Done:
