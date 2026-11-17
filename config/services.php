@@ -14,6 +14,26 @@ return [
     |
     */
 
+    'pixelforge' => [
+        'base_url' => env('PIXELFORGE_BASE_URL', 'https://pixelforge.promptedit.dev/v1'),
+        'api_key' => env('PIXELFORGE_API_KEY'),
+        'webhook_secret' => env('PIXELFORGE_WEBHOOK_SECRET'),
+
+        // HTTP timeouts, in seconds.
+        'timeout' => 10,
+        'connect_timeout' => 5,
+
+        // Seconds to wait before retrying when Pixelforge sends no usable
+        // Retry-After header, and the cap applied to any wait.
+        'retry_after' => [
+            'rate_limit' => 10,
+            'concurrency' => 5,
+            'overloaded' => 2,
+            'unavailable' => 5,
+            'max' => 3600,
+        ],
+    ],
+
     'postmark' => [
         'key' => env('POSTMARK_API_KEY'),
     ],

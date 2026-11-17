@@ -163,6 +163,9 @@ Done:
       worked example in the Pixelforge docs)
 - [x] Generation status rules and the billing aggregate
 - [x] `generations` and `webhook_events` migrations, Eloquent `Generation` model and factory
+- [x] `GenerationRepository` port and Eloquent adapter (row-locked updates)
+- [x] Pixelforge HTTP client behind the `ImageProvider` port: typed errors,
+      `Retry-After` handling, settings in `config/services.php`; checked against
+      the live API
 
-Next: repository adapter, Pixelforge HTTP client, submission flow, signed
-webhooks, UI, deployment.
+Next: submission flow, signed webhooks, UI, deployment.
