@@ -28,6 +28,7 @@ final class SubmitGeneration
 
     /**
      * @param  list<string>  $referenceImages
+     * @param  string|null  $id  the caller's own id, so a repeated submission is recognised; made here if omitted
      * @return string the id of the new generation
      */
     public function handle(
@@ -36,12 +37,19 @@ final class SubmitGeneration
         Quality $quality,
         ImageSize $size,
         array $referenceImages = [],
+        ?string $id = null,
     ): string {
-        $estimate = $this->quotes->quote($prompt, $quality, $size, count($referenceImages));
-
         // Our own id doubles as Pixelforge's Idempotency-Key, so sending the
         // same generation twice can never create two.
-        $id = (string) Str::uuid();
+        $id ??= (string) Str::uuid();
+
+        // The same request again (a double click, a retry): it is already recorded
+        // and on its way, so there is nothing more to do.
+        if ($this->generations->find($id) !== null) {
+            return $id;
+        }
+
+        $estimate = $this->quotes->quote($prompt, $quality, $size, count($referenceImages));
 
         $this->generations->add(new NewGeneration(
             id: $id,

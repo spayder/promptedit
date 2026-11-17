@@ -181,4 +181,8 @@ Done:
       Pixelforge about generations unchanged for 2 minutes, and resubmits ones that
       never reached it
 
-Next: UI, deployment.
+- [x] UI: generate page with a live price range (priced by the same server code
+      that records it), history page that updates itself while anything is
+      unfinished, "Image expired" and "Not charged" states
+
+Next: deployment, then the stretch goals (balances, admin report).

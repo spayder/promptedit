@@ -1,13 +1,27 @@
 <script setup>
-import { ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import ApplicationLogo from '@/Components/ApplicationLogo.vue';
 import Dropdown from '@/Components/Dropdown.vue';
 import DropdownLink from '@/Components/DropdownLink.vue';
 import NavLink from '@/Components/NavLink.vue';
 import ResponsiveNavLink from '@/Components/ResponsiveNavLink.vue';
-import { Link } from '@inertiajs/vue3';
+import { Link, usePage } from '@inertiajs/vue3';
 
 const showingNavigationDropdown = ref(false);
+
+// A one-off message ("Your image is on its way.") fades after a few seconds,
+// so it is not still on screen when the picture arrives.
+const page = usePage();
+const flashDismissed = ref(false);
+const flashStatus = computed(() => (flashDismissed.value ? null : page.props.flash?.status));
+watch(
+    () => page.props.flash?.status,
+    (status) => {
+        flashDismissed.value = false;
+        if (status) setTimeout(() => (flashDismissed.value = true), 6000);
+    },
+    { immediate: true },
+);
 </script>
 
 <template>
@@ -22,7 +36,7 @@ const showingNavigationDropdown = ref(false);
                         <div class="flex">
                             <!-- Logo -->
                             <div class="flex shrink-0 items-center">
-                                <Link :href="route('dashboard')">
+                                <Link :href="route('generations.create')">
                                     <ApplicationLogo
                                         class="block h-9 w-auto fill-current text-gray-800"
                                     />
@@ -34,10 +48,16 @@ const showingNavigationDropdown = ref(false);
                                 class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex"
                             >
                                 <NavLink
-                                    :href="route('dashboard')"
-                                    :active="route().current('dashboard')"
+                                    :href="route('generations.create')"
+                                    :active="route().current('generations.create')"
                                 >
-                                    Dashboard
+                                    Generate
+                                </NavLink>
+                                <NavLink
+                                    :href="route('generations.index')"
+                                    :active="route().current('generations.index')"
+                                >
+                                    History
                                 </NavLink>
                             </div>
                         </div>
@@ -141,10 +161,16 @@ const showingNavigationDropdown = ref(false);
                 >
                     <div class="space-y-1 pb-3 pt-2">
                         <ResponsiveNavLink
-                            :href="route('dashboard')"
-                            :active="route().current('dashboard')"
+                            :href="route('generations.create')"
+                            :active="route().current('generations.create')"
                         >
-                            Dashboard
+                            Generate
+                        </ResponsiveNavLink>
+                        <ResponsiveNavLink
+                            :href="route('generations.index')"
+                            :active="route().current('generations.index')"
+                        >
+                            History
                         </ResponsiveNavLink>
                     </div>
 
@@ -188,6 +214,17 @@ const showingNavigationDropdown = ref(false);
                     <slot name="header" />
                 </div>
             </header>
+
+            <!-- One-off message after an action (e.g. "Your image is on its way.") -->
+            <div
+                v-if="flashStatus"
+                role="status"
+                class="mx-auto max-w-7xl px-4 pt-6 sm:px-6 lg:px-8"
+            >
+                <p class="rounded-md bg-green-50 px-4 py-3 text-sm text-green-800 ring-1 ring-green-200">
+                    {{ flashStatus }}
+                </p>
+            </div>
 
             <!-- Page Content -->
             <main>
