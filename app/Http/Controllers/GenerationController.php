@@ -21,7 +21,7 @@ use Inertia\Response;
 
 final class GenerationController extends Controller
 {
-    private const PER_PAGE = 12;
+    private const int PER_PAGE = 12;
 
     public function create(): Response
     {

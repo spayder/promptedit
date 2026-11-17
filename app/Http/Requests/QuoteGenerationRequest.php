@@ -12,9 +12,9 @@ use Illuminate\Validation\Rule;
 /** What is needed to price a generation. The prompt may still be empty while the user is typing. */
 class QuoteGenerationRequest extends FormRequest
 {
-    public const MAX_PROMPT_LENGTH = 4000;
+    public const int MAX_PROMPT_LENGTH = 4000;
 
-    public const MAX_REFERENCE_IMAGES = 4;
+    public const int MAX_REFERENCE_IMAGES = 4;
 
     /** @return array<string, mixed> */
     public function rules(): array
