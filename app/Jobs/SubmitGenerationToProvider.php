@@ -25,7 +25,7 @@ final class SubmitGenerationToProvider implements ShouldQueue
     use Queueable;
 
     /** How long, from the moment of submitting, we keep trying. */
-    public const RETRY_WINDOW_MINUTES = 10;
+    public const int RETRY_WINDOW_MINUTES = 10;
 
     /** Unlimited attempts, so only retryUntil() ends it. */
     public int $tries = 0;

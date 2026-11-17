@@ -18,9 +18,9 @@ use Illuminate\Support\Facades\Log;
  */
 final class CachedPricingSource implements PricingSource
 {
-    private const FRESH_KEY = 'pixelforge.pricing';
+    private const string FRESH_KEY = 'pixelforge.pricing';
 
-    private const LAST_KNOWN_KEY = 'pixelforge.pricing.last_known';
+    private const string LAST_KNOWN_KEY = 'pixelforge.pricing.last_known';
 
     public function __construct(
         private readonly ImageProvider $provider,

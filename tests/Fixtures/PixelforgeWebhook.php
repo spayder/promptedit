@@ -7,7 +7,7 @@ namespace Tests\Fixtures;
 /** Builds and signs webhook deliveries the way Pixelforge does. */
 final class PixelforgeWebhook
 {
-    public const SECRET = 'whsec_test_secret';
+    public const string SECRET = 'whsec_test_secret';
 
     /**
      * @param  array<string, mixed>  $generation  a generation object, see PixelforgeApi::generation()

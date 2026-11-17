@@ -20,9 +20,9 @@ use Inertia\Response;
 final class ProfitReportController extends Controller
 {
     /** Pixelforge's usage report allows at most 92 days. */
-    private const MAX_DAYS = 92;
+    private const int MAX_DAYS = 92;
 
-    private const DEFAULT_DAYS = 30;
+    private const int DEFAULT_DAYS = 30;
 
     public function __invoke(Request $request, BuildProfitReport $build): Response
     {

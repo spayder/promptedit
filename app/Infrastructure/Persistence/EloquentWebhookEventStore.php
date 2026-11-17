@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Date;
 
 final class EloquentWebhookEventStore implements WebhookEventStore
 {
-    private const TABLE = 'webhook_events';
+    private const string TABLE = 'webhook_events';
 
     public function record(string $eventId, string $type, ?string $providerGenerationId, array $payload): bool
     {

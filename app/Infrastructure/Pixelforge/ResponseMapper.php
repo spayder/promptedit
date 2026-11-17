@@ -28,7 +28,7 @@ use Throwable;
  */
 final class ResponseMapper
 {
-    private const PROVIDER_STATUSES = [
+    private const array PROVIDER_STATUSES = [
         GenerationStatus::Queued,
         GenerationStatus::Processing,
         GenerationStatus::Succeeded,
