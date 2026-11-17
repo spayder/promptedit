@@ -7,8 +7,11 @@ namespace App\Infrastructure\Pixelforge;
 use App\Application\Provider\Exceptions\UnexpectedResponse;
 use App\Application\Provider\PricingSnapshot;
 use App\Application\Provider\ProviderGeneration;
+use App\Application\Provider\ProviderUsage;
+use App\Application\Provider\ProviderUsageDay;
 use App\Domain\Generation\GenerationStatus;
 use App\Domain\Generation\TokenUsage;
+use App\Domain\Money;
 use App\Domain\Pricing\Rates;
 use App\Domain\Pricing\TokenSchedule;
 use DateTimeImmutable;
@@ -82,6 +85,33 @@ final class ResponseMapper
             throw $e;
         } catch (Throwable $e) {
             throw new UnexpectedResponse('Could not read the pricing: '.$e->getMessage(), previous: $e);
+        }
+    }
+
+    /** @param  array<string, mixed>  $data  the GET /v1/usage response */
+    public static function usageReport(array $data): ProviderUsage
+    {
+        try {
+            $days = array_map(
+                fn (array $day) => new ProviderUsageDay(
+                    date: self::string($day, 'date'),
+                    generations: self::int($day, 'generations'),
+                    cost: Money::fromDecimal(self::string($day, 'cost_usd')),
+                ),
+                $data['data'] ?? throw new UnexpectedResponse('Usage response has no "data".'),
+            );
+
+            $total = $data['total'] ?? throw new UnexpectedResponse('Usage response has no "total".');
+
+            return new ProviderUsage(
+                days: array_values($days),
+                totalGenerations: self::int($total, 'generations'),
+                totalCost: Money::fromDecimal(self::string($total, 'cost_usd')),
+            );
+        } catch (UnexpectedResponse $e) {
+            throw $e;
+        } catch (Throwable $e) {
+            throw new UnexpectedResponse('Could not read the usage report: '.$e->getMessage(), previous: $e);
         }
     }
 

@@ -23,6 +23,7 @@ use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use Tests\Fixtures\PixelforgeApi;
 use Tests\Fixtures\PixelforgePricing;
+use Tests\Fixtures\PixelforgeUsage;
 
 beforeEach(function () {
     config([
@@ -251,6 +252,56 @@ describe('Retry-After', function () {
         }
 
         expect($waits)->toBe([ConcurrencyLimited::class => 5, Overloaded::class => 2, ProviderUnavailable::class => 5]);
+    });
+});
+
+describe('usage', function () {
+    it('asks for the date range and reads what Pixelforge billed per day', function () {
+        Http::fake(['pixelforge.test/*' => Http::response(PixelforgeUsage::response([
+            '2026-11-01' => [3, '0.169080000'],
+            '2026-11-02' => [0, '0.000000000'],
+        ]), 200)]);
+
+        $usage = provider()->usage('2026-11-01', '2026-11-02');
+
+        expect($usage->days)->toHaveCount(2)
+            ->and($usage->days[0]->date)->toBe('2026-11-01')
+            ->and($usage->days[0]->generations)->toBe(3)
+            ->and($usage->days[0]->cost->toNanos())->toBe(169_080_000)
+            ->and($usage->days[1]->isEmpty())->toBeTrue()
+            ->and($usage->totalGenerations)->toBe(3)
+            ->and($usage->totalCost->toDecimal())->toBe('0.169080000')
+            ->and($usage->forDate('2026-11-01')->generations)->toBe(3)
+            ->and($usage->forDate('2026-12-01'))->toBeNull();
+
+        Http::assertSent(fn (Request $request) => $request->method() === 'GET'
+            && str_starts_with($request->url(), 'https://pixelforge.test/v1/usage')
+            && $request->data() === ['start_date' => '2026-11-01', 'end_date' => '2026-11-02']
+            && $request->header('Authorization') === ['Bearer pf_test_key']);
+    });
+
+    it('keeps every digit of a cost', function () {
+        Http::fake(['pixelforge.test/*' => Http::response(PixelforgeUsage::response(['2026-11-01' => [1, '0.000000001']]), 200)]);
+
+        expect(provider()->usage('2026-11-01', '2026-11-01')->days[0]->cost->toNanos())->toBe(1);
+    });
+
+    it('rejects a report it cannot read instead of guessing', function (array $body) {
+        Http::fake(['pixelforge.test/*' => Http::response($body, 200)]);
+
+        expect(fn () => provider()->usage('2026-11-01', '2026-11-02'))->toThrow(UnexpectedResponse::class);
+    })->with([
+        'no data' => [['object' => 'usage', 'total' => ['generations' => 0, 'cost_usd' => '0.000000000']]],
+        'no total' => [['object' => 'usage', 'data' => []]],
+        'a cost with too many decimals' => [['data' => [['date' => '2026-11-01', 'generations' => 1, 'cost_usd' => '0.0000000001']], 'total' => ['generations' => 1, 'cost_usd' => '0.000000000']]],
+        'a cost that is not a number' => [['data' => [['date' => '2026-11-01', 'generations' => 1, 'cost_usd' => 'free']], 'total' => ['generations' => 1, 'cost_usd' => '0.000000000']]],
+        'a count that is not a number' => [['data' => [['date' => '2026-11-01', 'generations' => 'many', 'cost_usd' => '0.000000000']], 'total' => ['generations' => 1, 'cost_usd' => '0.000000000']]],
+    ]);
+
+    it('reports a date range Pixelforge refuses as a validation failure', function () {
+        Http::fake(['pixelforge.test/*' => Http::response(PixelforgeApi::error('invalid_request_error', 'validation_failed', 'Invalid parameters.', ['errors' => ['end_date' => ['The range is too long.']]]), 422)]);
+
+        expect(fn () => provider()->usage('2026-01-01', '2026-12-31'))->toThrow(ValidationFailed::class);
     });
 });
 

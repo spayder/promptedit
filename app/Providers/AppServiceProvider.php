@@ -2,11 +2,13 @@
 
 namespace App\Providers;
 
+use App\Application\Ports\GenerationReportReader;
 use App\Application\Ports\GenerationRepository;
 use App\Application\Ports\ImageProvider;
 use App\Application\Ports\PricingSource;
 use App\Application\Ports\WebhookEventStore;
 use App\Domain\Pricing\MarkupPolicy;
+use App\Infrastructure\Persistence\EloquentGenerationReportReader;
 use App\Infrastructure\Persistence\EloquentGenerationRepository;
 use App\Infrastructure\Persistence\EloquentWebhookEventStore;
 use App\Infrastructure\Pixelforge\WebhookSignatureVerifier;
@@ -33,6 +35,8 @@ class AppServiceProvider extends ServiceProvider
             $app->make('cache.store'),
             (int) config('services.pixelforge.pricing_cache_seconds'),
         ));
+
+        $this->app->bind(GenerationReportReader::class, EloquentGenerationReportReader::class);
 
         $this->app->bind(WebhookEventStore::class, EloquentWebhookEventStore::class);
 

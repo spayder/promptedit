@@ -20,6 +20,7 @@ use App\Application\Provider\Exceptions\UnexpectedResponse;
 use App\Application\Provider\Exceptions\ValidationFailed;
 use App\Application\Provider\PricingSnapshot;
 use App\Application\Provider\ProviderGeneration;
+use App\Application\Provider\ProviderUsage;
 use Closure;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
@@ -72,6 +73,16 @@ final class PixelforgeClient implements ImageProvider
         $data = $this->call(fn (PendingRequest $http) => $http->get('/pricing'));
 
         return ResponseMapper::pricing($data);
+    }
+
+    public function usage(string $startDate, string $endDate): ProviderUsage
+    {
+        $data = $this->call(fn (PendingRequest $http) => $http->get('/usage', [
+            'start_date' => $startDate,
+            'end_date' => $endDate,
+        ]));
+
+        return ResponseMapper::usageReport($data);
     }
 
     /**

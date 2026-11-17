@@ -59,6 +59,12 @@ watch(
                                 >
                                     History
                                 </NavLink>
+                                <NavLink
+                                    :href="route('report.index')"
+                                    :active="route().current('report.index')"
+                                >
+                                    Report
+                                </NavLink>
                             </div>
                         </div>
 
@@ -171,6 +177,12 @@ watch(
                             :active="route().current('generations.index')"
                         >
                             History
+                        </ResponsiveNavLink>
+                        <ResponsiveNavLink
+                            :href="route('report.index')"
+                            :active="route().current('report.index')"
+                        >
+                            Report
                         </ResponsiveNavLink>
                     </div>
 

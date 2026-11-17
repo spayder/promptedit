@@ -33,6 +33,12 @@ the prompt:
 | `[blocked]` | Rejected at submission by the content policy. Nothing is charged. |
 | `[overloaded]` | Pixelforge answers 503; the job waits and retries. |
 
+The **Report** page (`/report`) lists, per UTC day and user, what was charged, what
+Pixelforge charged us and the profit. Each day is checked against Pixelforge's own
+`GET /v1/usage` for the same key, and flagged when the number of generations or the
+cost differ by even one nanodollar. It is open to every signed-in user on purpose:
+this is a demo app with a handful of known users.
+
 Things worth knowing:
 
 - Images are not stored. Pixelforge's link works for 24 hours, then the card shows
@@ -260,4 +266,6 @@ Done:
       that records it), history page that updates itself while anything is
       unfinished, "Image expired" and "Not charged" states
 
-Next: deployment, then the stretch goals (balances, admin report).
+- [x] Report page: per day and user, with a check against Pixelforge's usage report
+
+Next: balances (fake "Buy credits", block what cannot be afforded).

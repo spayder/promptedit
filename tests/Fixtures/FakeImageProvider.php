@@ -9,6 +9,8 @@ use App\Application\Provider\CreateGenerationRequest;
 use App\Application\Provider\Exceptions\ProviderNotFound;
 use App\Application\Provider\PricingSnapshot;
 use App\Application\Provider\ProviderGeneration;
+use App\Application\Provider\ProviderUsage;
+use App\Domain\Money;
 use App\Infrastructure\Pixelforge\ResponseMapper;
 use Closure;
 use Throwable;
@@ -23,6 +25,15 @@ final class FakeImageProvider implements ImageProvider
 
     /** Thrown by createGeneration() when set. */
     public ?Throwable $createFailure = null;
+
+    /** What usage() answers; build it with PixelforgeUsage::report(). */
+    public ?ProviderUsage $usage = null;
+
+    /** Thrown by usage() when set. */
+    public ?Throwable $usageFailure = null;
+
+    /** @var list<array{0: string, 1: string}> the date ranges usage() was asked for */
+    public array $usageRequests = [];
 
     /** Thrown by pricing() when set. */
     public ?Throwable $pricingFailure = null;
@@ -68,6 +79,17 @@ final class FakeImageProvider implements ImageProvider
         }
 
         return $this->remote[$providerId] ?? throw new ProviderNotFound('No such resource.', 'not_found', 404);
+    }
+
+    public function usage(string $startDate, string $endDate): ProviderUsage
+    {
+        $this->usageRequests[] = [$startDate, $endDate];
+
+        if ($this->usageFailure !== null) {
+            throw $this->usageFailure;
+        }
+
+        return $this->usage ?? new ProviderUsage([], 0, Money::zero());
     }
 
     public function pricing(): PricingSnapshot
