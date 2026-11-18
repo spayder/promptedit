@@ -11,6 +11,8 @@ use App\Application\Provider\Exceptions\DailyLimitExceeded;
 use App\Application\Provider\Exceptions\IdempotencyKeyReused;
 use App\Application\Provider\Exceptions\Overloaded;
 use App\Application\Provider\Exceptions\RateLimited;
+use App\Application\Provider\Exceptions\ProviderUnavailable;
+use App\Application\Provider\Exceptions\UnexpectedResponse;
 use App\Application\Provider\Exceptions\ValidationFailed;
 use App\Domain\Generation\Generation;
 use App\Domain\Generation\GenerationStatus;
@@ -133,6 +135,8 @@ describe('when Pixelforge says try again later', function () {
         'overloaded' => [fn () => new Overloaded('busy', 2)],
         'rate limited' => [fn () => new RateLimited('slow down', 10)],
         'too many in flight' => [fn () => new ConcurrencyLimited('3 at a time', 5)],
+        // Pixelforge answered 2xx but we could not read it: it may exist there, so try again with the same key.
+        'an unreadable reply' => [fn () => new ProviderUnavailable('reply could not be read', 5, previous: new UnexpectedResponse('garbled'))],
     ]);
 });
 
@@ -154,6 +158,35 @@ describe('when Pixelforge refuses for good', function () {
         'blocked prompt' => [fn () => new ContentPolicyViolation('no', 'content_policy_violation', 400), 'content_policy_violation', 'content policy'],
         'invalid request' => [fn () => new ValidationFailed('The prompt field is required.', ['prompt' => ['required']]), 'invalid_request', 'prompt field is required'],
         'daily limit' => [fn () => new DailyLimitExceeded('500 a day', 'daily_limit_exceeded', 429), 'provider_daily_limit', 'daily'],
+    ]);
+
+    it('does not fail a generation a webhook already advanced while the create call was being refused', function (Throwable $failure) {
+        Log::spy();
+        $pending = GenerationRecord::factory()->create();
+
+        // Pixelforge took it on and a webhook is applied, then our own call is reported as refused.
+        $this->provider->whileCreating = fn () => app(GenerationRepository::class)->update(
+            $pending->id,
+            function (Generation $generation) {
+                $generation->linkProvider('gen_test0001');
+                $generation->markProcessing();
+            },
+        );
+        $this->provider->createFailure = $failure;
+
+        submission()->submit($pending->id);
+
+        // It exists at Pixelforge and may be billed: it must not be turned into a free failure.
+        expect(record($pending))
+            ->status->toBe(GenerationStatus::Processing)
+            ->provider_id->toBe('gen_test0001')
+            ->error_code->toBeNull()
+            ->charged_nanos->toBeNull();
+
+        Log::shouldHaveReceived('warning')->withArgs(fn (string $message) => str_contains($message, 'already taken on'))->once();
+    })->with([
+        'blocked' => [fn () => new ContentPolicyViolation('no', 'content_policy_violation', 400)],
+        'a bad API key' => [fn () => new AuthenticationFailed('Invalid API key', 'invalid_api_key', 401)],
     ]);
 
     it('hides our own configuration problems from the user but logs them', function (Throwable $failure) {
@@ -186,6 +219,28 @@ describe('giving up', function () {
             ->status->toBe(GenerationStatus::Failed)
             ->error_code->toBe('provider_unavailable')
             ->charged_nanos->toBe(0);
+    });
+
+    it('leaves a generation Pixelforge has already taken on alone, even though the retries ran out', function (string $state) {
+        $taken = GenerationRecord::factory()->{$state}()->create();
+
+        submission()->giveUp($taken->id);
+
+        expect(record($taken))
+            ->status->toBe($taken->status)
+            ->provider_id->toBe($taken->provider_id)
+            ->error_code->toBeNull()
+            ->error_message->toBeNull()
+            ->charged_nanos->toBeNull()
+            ->completed_at->toBeNull();
+    })->with(['queued', 'processing']);
+
+    it('still ends a generation that Pixelforge never saw', function () {
+        $pending = GenerationRecord::factory()->pending()->create();
+
+        submission()->giveUp($pending->id);
+
+        expect(record($pending))->status->toBe(GenerationStatus::Failed)->charged_nanos->toBe(0);
     });
 
     it('never overrides a generation that already finished', function () {

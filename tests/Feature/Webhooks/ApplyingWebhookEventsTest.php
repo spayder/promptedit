@@ -166,6 +166,36 @@ describe('events we cannot place', function () {
         Log::shouldHaveReceived('warning')->once();
     });
 
+    it('goes by Pixelforge\'s id when the metadata is not one of our ids', function (string $metadataId) {
+        // e.g. another app sharing the Pixelforge account put its own value there.
+        $generation = GenerationRecord::factory()->queued()->create();
+
+        deliver($generation, 'generation.succeeded', 'succeeded', 'evt_1', ['metadata' => ['generation_id' => $metadataId]]);
+
+        expect($generation->fresh())
+            ->status->toBe(GenerationStatus::Succeeded)
+            ->charged_nanos->toBe(70_687_500)
+            ->and(DB::table('webhook_events')->value('processed_at'))->not->toBeNull();
+    })->with([
+        'text' => ['not-a-uuid'],
+        'a number' => ['12345'],
+        'empty' => [''],
+        'something hostile' => ["' OR 1=1 --"],
+        'a UUID-looking value with a letter too many' => ['0192a0a0-0000-7000-8000-00000000000g'],
+    ]);
+
+    it('acknowledges, and does not retry forever, an event with a bad metadata id and a Pixelforge id we do not know', function () {
+        $object = PixelforgeApi::generation('succeeded', ['id' => 'gen_stranger', 'metadata' => ['generation_id' => 'not-a-uuid']]);
+        $raw = json_encode(PixelforgeWebhook::event('generation.succeeded', $object, 'evt_x'));
+
+        webhookPost($raw, PixelforgeWebhook::signature($raw))->assertNoContent();
+
+        expect(DB::table('webhook_events')->first())
+            ->generation_id->toBeNull()
+            ->processed_at->not->toBeNull()
+            ->and(GenerationRecord::query()->count())->toBe(0);
+    });
+
     it('acknowledges an event whose metadata names a generation id that is not ours', function () {
         $object = PixelforgeApi::generation('succeeded', ['id' => 'gen_x', 'metadata' => ['generation_id' => '0192a0a0-0000-7000-8000-00000000beef']]);
         $raw = json_encode(PixelforgeWebhook::event('generation.succeeded', $object, 'evt_x'));

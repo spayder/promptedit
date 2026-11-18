@@ -252,8 +252,9 @@ Done:
       the live API
 - [x] Submission flow: quote (estimate with markup, pricing cached), record as
       `pending`, queued job calls Pixelforge with our id as the idempotency key and
-      retries for 10 minutes while Pixelforge is busy; refusals and give-ups fail
-      the generation at no charge
+      retries for 10 minutes while Pixelforge is busy (an unreadable reply is
+      retried too, since the request may have been accepted); refusals and give-ups
+      fail a generation at no charge only if Pixelforge never took it on
 - [x] Signed webhooks: raw-body HMAC check with a replay window, events stored
       once by id, applied by a queued job that goes by the reported status (so
       duplicates and out-of-order deliveries change nothing)

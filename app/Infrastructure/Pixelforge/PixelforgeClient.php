@@ -26,6 +26,7 @@ use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Talks to the Pixelforge API. It never retries on its own: whether and when
@@ -54,11 +55,34 @@ final class PixelforgeClient implements ImageProvider
             $body['metadata'] = $request->metadata;
         }
 
-        $data = $this->call(fn (PendingRequest $http) => $http
-            ->withHeaders(['Idempotency-Key' => $idempotencyKey])
-            ->post('/generations', $body));
+        try {
+            $data = $this->call(fn (PendingRequest $http) => $http
+                ->withHeaders(['Idempotency-Key' => $idempotencyKey])
+                ->post('/generations', $body));
 
-        return ResponseMapper::generation($data);
+            return ResponseMapper::generation($data);
+        } catch (UnexpectedResponse $e) {
+            // A refusal we do not recognise (a 4xx) means nothing was created: leave it as it is.
+            if ($e->httpStatus !== null && $e->httpStatus >= 300) {
+                throw $e;
+            }
+
+            // Pixelforge answered 2xx, so it may well have created and be billing the generation,
+            // but we cannot read who it is. Failing it here would tell the user "not charged"
+            // for something we may owe money for. Retrying with the same idempotency key is
+            // safe: Pixelforge hands back the generation it already made.
+            Log::error('Pixelforge accepted a generation but its reply could not be read; it may exist there.', [
+                'idempotency_key' => $idempotencyKey,
+                'problem' => $e->getMessage(),
+            ]);
+
+            throw new ProviderUnavailable(
+                'Pixelforge accepted the request but its reply could not be read: '.$e->getMessage(),
+                $this->settings->retryUnavailable,
+                httpStatus: $e->httpStatus,
+                previous: $e,
+            );
+        }
     }
 
     public function getGeneration(string $providerId): ProviderGeneration

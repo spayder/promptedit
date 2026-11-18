@@ -75,19 +75,40 @@ final class ProviderSubmission
         $this->generations->update($id, fn (Generation $generation) => $this->apply->handle($generation, $remote));
     }
 
-    /** We stopped trying (retries ran out). Nothing is charged for a generation that never ran. */
+    /**
+     * We stopped trying (retries ran out). Only a generation Pixelforge never took on is
+     * ended here, and nothing is charged for it. One that Pixelforge already knows is left
+     * for Pixelforge's own report to finish.
+     */
     public function giveUp(string $id): void
     {
         $this->fail($id, 'provider_unavailable', 'The image service is unavailable right now. You were not charged, please try again.');
     }
 
+    /**
+     * Ends the generation as failed (and free), but only while Pixelforge has not taken it on.
+     *
+     * Once it has a Pixelforge id, or has moved past "pending" because a webhook got there
+     * first, it exists at Pixelforge and may be billed. Telling the user "not charged" then
+     * would be a promise we cannot keep, and a failure is final, so a later success would be
+     * thrown away. In that case only Pixelforge's report may finish it.
+     */
     private function fail(string $id, string $code, string $message): void
     {
-        $this->generations->update($id, fn (Generation $generation) => $generation->markFailed(
-            $code,
-            $message,
-            Date::now()->toDateTimeImmutable(),
-        ));
+        $this->generations->update($id, function (Generation $generation) use ($id, $code, $message) {
+            if ($generation->status !== GenerationStatus::Pending || $generation->providerId !== null) {
+                Log::warning('Not failing a generation that Pixelforge has already taken on.', [
+                    'generation' => $id,
+                    'status' => $generation->status->value,
+                    'provider_id' => $generation->providerId,
+                    'would_have_failed_with' => $code,
+                ]);
+
+                return false;
+            }
+
+            return $generation->markFailed($code, $message, Date::now()->toDateTimeImmutable());
+        });
     }
 
     /** @return array{0: string, 1: string} error code and a message fit to show the user */

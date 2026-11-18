@@ -57,3 +57,15 @@ it('fails the generation, free of charge, when it runs out of retries', function
         ->error_code->toBe('provider_unavailable')
         ->charged_nanos->toBe(0);
 });
+
+it('does not fail a generation Pixelforge already knows about when it runs out of retries', function () {
+    // e.g. the create call worked but saving its answer kept failing, and a webhook has since arrived.
+    $known = GenerationRecord::factory()->processing()->create();
+
+    (new SubmitGenerationToProvider($known->id))->failed(new RuntimeException('too many attempts'));
+
+    expect($known->fresh())
+        ->status->toBe(GenerationStatus::Processing)
+        ->error_code->toBeNull()
+        ->charged_nanos->toBeNull();
+});

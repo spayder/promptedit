@@ -21,6 +21,7 @@ use App\Domain\Generation\Quality;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Tests\Fixtures\PixelforgeApi;
 use Tests\Fixtures\PixelforgePricing;
 use Tests\Fixtures\PixelforgeUsage;
@@ -380,10 +381,53 @@ describe('unreliable responses', function () {
         expect(fn () => provider()->getGeneration('gen_test0001'))->toThrow(UnexpectedResponse::class);
     });
 
-    it('rejects a successful response with a status we do not know', function () {
-        Http::fake(['pixelforge.test/*' => Http::response(PixelforgeApi::generation('queued', ['status' => 'teleporting']), 202)]);
+    it('rejects a successful lookup with a status we do not know', function () {
+        Http::fake(['pixelforge.test/*' => Http::response(PixelforgeApi::generation('queued', ['status' => 'teleporting']), 200)]);
+
+        expect(fn () => provider()->getGeneration('gen_test0001'))->toThrow(UnexpectedResponse::class);
+    });
+});
+
+describe('a create reply we cannot read', function () {
+    // Pixelforge answered 2xx, so it may have created (and be billing) the generation.
+    // That must never be treated as "refused": it is retried with the same idempotency key.
+    it('is retryable, because the request may have been accepted', function (mixed $reply, int $status) {
+        Log::spy();
+        Http::fake(['pixelforge.test/*' => Http::response($reply, $status)]);
+
+        try {
+            provider()->createGeneration(aRequest(), 'idem-123');
+        } catch (RetryableProviderException $e) {
+            expect($e)->toBeInstanceOf(ProviderUnavailable::class)
+                ->and($e->retryAfterSeconds)->toBe(5)
+                ->and($e->getPrevious())->toBeInstanceOf(UnexpectedResponse::class)
+                ->and($e->getMessage())->toContain('could not be read');
+
+            Http::assertSentCount(1); // the client itself still never retries
+            Log::shouldHaveReceived('error')->once();
+
+            return;
+        }
+
+        $this->fail('Expected a retryable exception');
+    })->with([
+        'a body that is not JSON' => ['accepted', 202],
+        'an HTML page' => ['<html>ok</html>', 200],
+        'an unknown status' => [PixelforgeApi::generation('queued', ['status' => 'teleporting']), 202],
+        'no id' => [array_diff_key(PixelforgeApi::generation('queued'), ['id' => 1]), 202],
+        'a malformed date' => [PixelforgeApi::generation('queued', ['created_at' => 'yesterday-ish']), 202],
+    ]);
+
+    it('still treats an unrecognised refusal as final, because a 4xx means nothing was created', function () {
+        Http::fake(['pixelforge.test/*' => Http::response(PixelforgeApi::error('weird_error', 'teapot'), 418)]);
 
         expect(fn () => provider()->createGeneration(aRequest(), 'idem'))->toThrow(UnexpectedResponse::class);
+    });
+
+    it('does not change how a lookup of an existing generation reports an unreadable reply', function () {
+        Http::fake(['pixelforge.test/*' => Http::response('accepted', 200)]);
+
+        expect(fn () => provider()->getGeneration('gen_test0001'))->toThrow(UnexpectedResponse::class);
     });
 });
 
