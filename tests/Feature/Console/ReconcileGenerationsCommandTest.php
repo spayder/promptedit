@@ -34,11 +34,11 @@ it('does nothing, quietly, when there is nothing overdue', function () {
         ->assertSuccessful();
 });
 
-it('is scheduled every minute without overlapping itself', function () {
+it('is scheduled every five minutes without overlapping itself', function () {
     $event = collect(app(Schedule::class)->events())
         ->first(fn ($event) => str_contains($event->command, 'generations:reconcile'));
 
     expect($event)->not->toBeNull()
-        ->and($event->expression)->toBe('* * * * *')
+        ->and($event->expression)->toBe('*/5 * * * *')
         ->and($event->withoutOverlapping)->toBeTrue();
 });

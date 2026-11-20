@@ -217,7 +217,7 @@ so jobs keep running while the web app sleeps.
 4. **Database:** attach Serverless Postgres in the same region. Cloud injects the `DB_*` variables.
 5. **Queue:** add a managed queue (standard, Flex). Cloud sets `QUEUE_CONNECTION=cloud`.
 6. **Scheduler:** switch on the scheduler for the app cluster. It runs
-   `generations:reconcile` every minute, which also wakes a sleeping environment.
+   `generations:reconcile` every five minutes, which also wakes a sleeping environment.
 7. **Environment variables**
 
    | Variable | Value |
@@ -258,7 +258,7 @@ Done:
 - [x] Signed webhooks: raw-body HMAC check with a replay window, events stored
       once by id, applied by a queued job that goes by the reported status (so
       duplicates and out-of-order deliveries change nothing)
-- [x] Poller for missed webhooks (`generations:reconcile`, every minute): asks
+- [x] Poller for missed webhooks (`generations:reconcile`, every five minutes): asks
       Pixelforge about generations unchanged for 2 minutes, and resubmits ones that
       never reached it
 - [x] UI: generate page with a live price range (priced by the same server code

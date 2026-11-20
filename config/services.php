@@ -19,7 +19,7 @@ return [
         'api_key' => env('PIXELFORGE_API_KEY'),
         'webhook_secret' => env('PIXELFORGE_WEBHOOK_SECRET'),
 
-        // The safety net for missed webhooks (php artisan generations:reconcile, every minute).
+        // The safety net for missed webhooks (php artisan generations:reconcile, every five minutes).
         'reconcile' => [
             // Ask Pixelforge about a queued/processing generation that has not changed for this long.
             // Normal processing takes 5-90 seconds, so this is well past "slow".
